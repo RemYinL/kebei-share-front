@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>创投基金调查清单 · 审查报告</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0f12;
+  --bg-card: #1a1a20;
+  --bg-elevated: #24242d;
+  --text-primary: #e8e6e3;
+  --text-secondary: #98989e;
+  --text-muted: #5c5c66;
+  --accent: #d4a853;
+  --accent-dim: #d4a85330;
+  --red: #e5484d;
+  --red-dim: #e5484d20;
+  --amber: #f5a623;
+  --amber-dim: #f5a62320;
+  --green: #30a46c;
+  --green-dim: #30a46c20;
+  --border: #2a2a35;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --font-display: 'Noto Serif SC', serif;
+  --font-body: 'Noto Sans SC', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Top header bar */
+.header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-badge {
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 4px 12px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.header-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.header-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+main { max-width: 1000px; margin: 0 auto; padding: 40px 32px 80px; }
+
+/* Hero */
+.hero {
+  margin-bottom: 48px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  margin-bottom: 12px;
+}
+.hero h1 span { color: var(--accent); }
+.hero .subtitle {
+  color: var(--text-secondary);
+  font-size: 15px;
+  max-width: 640px;
+}
+.hero .meta-row {
+  display: flex;
+  gap: 32px;
+  margin-top: 20px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hero .meta-row span { color: var(--text-secondary); }
+
+/* Stats bar */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 48px;
+}
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  text-align: center;
+}
+.stat-card .stat-num {
+  font-family: var(--font-display);
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-card .stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+}
+.stat-card.red .stat-num { color: var(--red); }
+.stat-card.amber .stat-num { color: var(--amber); }
+.stat-card.green .stat-num { color: var(--green); }
+
+/* Section */
+.section { margin-bottom: 48px; }
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.section-num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+}
+.section h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* Issue card */
+.issue {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  margin-bottom: 16px;
+  border-left: 3px solid transparent;
+}
+.issue.sev-critical { border-left-color: var(--red); }
+.issue.sev-important { border-left-color: var(--amber); }
+.issue.sev-suggest { border-left-color: var(--green); }
+
+.issue-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.sev-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 3px 10px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sev-tag.critical { background: var(--red-dim); color: var(--red); }
+.sev-tag.important { background: var(--amber-dim); color: var(--amber); }
+.sev-tag.suggest { background: var(--green-dim); color: var(--green); }
+
+.issue-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+}
+.issue-body { color: var(--text-secondary); font-size: 14px; line-height: 1.8; }
+.issue-body strong { color: var(--text-primary); font-weight: 600; }
+
+/* Data table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.data-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--border);
+}
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.data-table td.highlight { color: var(--red); font-weight: 700; }
+.data-table td.match { color: var(--green); }
+
+/* Code block */
+.code-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin: 12px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow-x: auto;
+  line-height: 1.8;
+}
+.code-block .err { color: var(--red); }
+.code-block .fix { color: var(--green); }
+
+/* Divider */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 8px 0;
+}
+
+/* Fix block */
+.fix-block {
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+}
+.fix-block .fix-icon { color: var(--accent); font-weight: 700; flex-shrink: 0; }
+.fix-block .fix-text { color: var(--text-secondary); }
+.fix-block .fix-text strong { color: var(--text-primary); }
+
+/* Checklist */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.check-row .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+.check-row .dot.red-dot { background: var(--red); }
+.check-row .dot.amber-dot { background: var(--amber); }
+.check-row .dot.green-dot { background: var(--green); }
+
+/* Footer */
+.footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+  .stats-bar { grid-template-columns: 1fr; }
+  .header { padding: 16px 20px; }
+  main { padding: 24px 16px 48px; }
+  .hero h1 { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <span class="header-badge">Due Diligence Review</span>
+    <span class="header-title">创投基金调查清单 · 审查报告</span>
+  </div>
+  <span class="header-meta">科贝智色项目 &nbsp;·&nbsp; 2026.06.29</span>
+</header>
+
+<main>
+
+<!-- Hero -->
+<section class="hero">
+  <h1>创投基金调查清单<br><span>逻辑与财务模型审查</span></h1>
+  <p class="subtitle">
+    基于湘潭科贝数构科技有限公司「大学生创业投资基金项目尽职调查资料清单」PDF，对照项目计划书（6.19）、大创申报书、科贝智色库内相关文件进行的交叉审查。聚焦逻辑一致性、财务模型合理性及表述完整性。
+  </p>
+  <div class="meta-row">
+    <div>审查对象 <span>创投基金调查清单.pdf</span></div>
+    <div>对照基准 <span>计划书6.19.pdf / 大创申报 / docx模板</span></div>
+    <div>审查人 <span>AI辅助分析</span></div>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat-card red">
+    <div class="stat-num">5</div>
+    <div class="stat-label">严重逻辑错误 / 矛盾</div>
+  </div>
+  <div class="stat-card amber">
+    <div class="stat-num">5</div>
+    <div class="stat-label">重要问题需修正</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-num">5</div>
+    <div class="stat-label">竞争力提升建议</div>
+  </div>
+</div>
+
+<!-- ==================== SECTION: 严重问题 ==================== -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">PART 01</span>
+    <h2>严重逻辑错误与矛盾</h2>
+  </div>
+
+  <!-- Issue 1 -->
+  <div class="issue sev-critical">
+    <div class="issue-header">
+      <span class="sev-tag critical">严重</span>
+      <span class="issue-title">人员结构重复录入 — 陈堉铭出现两次，唐思涵缺失</span>
+    </div>
+    <div class="issue-body">
+      <p>清单<strong>第5条（人员结构）</strong>中陈堉铭的信息出现了<strong>两次</strong>：第一次为 CEO/CFO/第一负责人，第二次为"会计，年终财报报送"。第二处实为<strong>唐思涵</strong>（会计专业，团队成员）。与此同时，第4条组织架构中已明确唐思涵为财务部成员，但第5条中她完全缺失。</p>
+      <div class="code-block">
+        <span class="err"># 当前（错误）</span>
+        陈堉铭：岗位：CEO, CFO, 大创项目第一负责人；<span class="err">…</span>
+        <span class="err">陈堉铭：岗位：会计，年终财报报送；</span>  ← 应为唐思涵
+
+        <span class="fix"># 应修正为</span>
+        唐思涵：年龄：19；学历：全日制本科在读；
+        岗位：会计，年终财报报送；全职：否；
+      </div>
+    </div>
+  </div>
+
+  <!-- Issue 2 -->
+  <div class="issue sev-critical">
+    <div class="issue-header">
+      <span class="sev-tag critical">严重</span>
+      <span class="issue-title">财务预测与项目计划书严重不一致（10倍差距）</span>
+    </div>
+    <div class="issue-body">
+      <table class="data-table">
+        <tr><th>指标</th><th>DD 调查清单</th><th>项目计划书 6.19</th><th>差距</th></tr>
+        <tr><td>Y1 营收</td><td class="highlight">500 万</td><td class="match">20–50 万（SOM）</td><td>10×+</td></tr>
+        <tr><td>Y2 营收</td><td class="highlight">1,500 万</td><td class="match">100–200 万（SOM）</td><td>10×+</td></tr>
+        <tr><td>Y3 营收</td><td class="highlight">4,000 万</td><td class="match">200–500 万（SOM）</td><td>10×+</td></tr>
+      </table>
+      <p style="margin-top:12px">两份文件是<strong>同一项目</strong>提交给不同评审方的材料。若被交叉比对，10倍差异将直接导致<strong>可信度崩塌</strong>。必须统一口径，或给出充分的差异说明。</p>
+    </div>
+  </div>
+
+  <!-- Issue 3 -->
+  <div class="issue sev-critical">
+    <div class="issue-header">
+      <span class="sev-tag critical">严重</span>
+      <span class="issue-title">估值数字与自身财务预测完全矛盾</span>
+    </div>
+    <div class="issue-body">
+      <p>清单第5条第2款写明：<strong>"三年后估值达 50 万元"</strong>，但清单自身预测 Y3 净利润 680 万、营收 4,000 万。即使按最保守的 <strong>5 倍 PE</strong> 估值，也应为 <strong>3,400 万元</strong>，是所写数字的 68 倍。</p>
+      <p style="margin-top:8px">"十年内估值达 500 万元"同样与增长曲线严重矛盾。这些数字<strong>疑似遗漏量级</strong>（可能是 5,000 万 / 5 亿的笔误），但以当前形态呈现给投资方是致命硬伤。</p>
+      <div class="fix-block">
+        <span class="fix-icon">→</span>
+        <span class="fix-text"><strong>建议：</strong>按 Y3 净利润 × 合理 PE 倍数重算。考虑到赛道属性和早期阶段，8–15 倍 PE 对应估值 <strong>5,400 万 – 1.02 亿</strong>。如保守取 10 倍，建议写"三年后目标估值 6,000–8,000 万元"。</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Issue 4 -->
+  <div class="issue sev-critical">
+    <div class="issue-header">
+      <span class="sev-tag critical">严重</span>
+      <span class="issue-title">产品技术路线引用已废弃架构（HRM）</span>
+    </div>
+    <div class="issue-body">
+      <p>清单产品名称引用 <strong>"LLM+HRM 深度推理校验架构"</strong>，但根据项目实际开发记录（2026-06-21），<strong>HRM 精确训练方向已正式废弃</strong>。当前实际技术路线已转向 Gemma + Qwen 组合方案。清单中的技术描述与实际研发状态脱节，尽调中若被技术 DD 追问可能无法自圆其说。</p>
+      <div class="fix-block">
+        <span class="fix-icon">→</span>
+        <span class="fix-text"><strong>建议：</strong>更新产品名称为实际架构描述，例如"基于异构大模型协同（Gemma+Qwen）的工业配方推理系统"，确保与技术文档一致。</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Issue 5 -->
+  <div class="issue sev-critical">
+    <div class="issue-header">
+      <span class="sev-tag critical">严重</span>
+      <span class="issue-title">LTV/CAC 数据悬空 — 无客户却声称比值 3.8</span>
+    </div>
+    <div class="issue-body">
+      <p>清单声称<strong>"目前 LTV/CAC 比值为 3.8"</strong>，但公司当前：</p>
+      <div style="display:flex;gap:24px;margin:12px 0;font-size:13px">
+        <div>✗ 零付费客户</div><div>✗ 零获客成本数据</div><div>✗ 零客户生命周期数据</div>
+      </div>
+      <p>在尽调中投资方会要求出示计算底稿。无法提供的"精确数字"比不提供更致命——会被直接质疑<strong>数据造假</strong>。</p>
+      <div class="fix-block">
+        <span class="fix-icon">→</span>
+        <span class="fix-text"><strong>建议：</strong>两种处理方式 —（A）标注为"模型预估值"并给出完整计算假设；(B) 删除具体数字，改为定性描述"基于边缘算力部署的低成本优势，预期 LTV/CAC 显著优于行业基准"。</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION: 财务模型 ==================== -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">PART 02</span>
+    <h2>财务模型深度问题</h2>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">营收实现路径缺失 — 确定性收入与目标差距 125 倍</span>
+    </div>
+    <div class="issue-body">
+      <p>Y1 目标营收 <strong>500 万</strong>，但基于已披露的定价方案，当前确定性收入仅有：</p>
+      <table class="data-table">
+        <tr><th>收入来源</th><th>单价</th><th>客户数</th><th>年收入</th></tr>
+        <tr><td>硬件租赁</td><td>1,200 元/季</td><td>2 家</td><td>9,600 元</td></tr>
+        <tr><td>软件许可</td><td>12,000 元/年</td><td>2 家</td><td>24,000 元</td></tr>
+        <tr><td>技术服务</td><td>1,000 元/季</td><td>2 家</td><td>8,000 元</td></tr>
+        <tr><td>API Token</td><td colspan="2">尚未开通</td><td>—</td></tr>
+        <tr style="font-weight:700"><td>合计</td><td></td><td></td><td style="color:var(--red)">≈ 4.2 万</td></tr>
+      </table>
+      <p style="margin-top:12px">4.2 万 → 500 万，缺口 <strong>496 万</strong>。清单没有提供弥合路径——需要多少家客户、什么客单价、多快的爬坡速度。</p>
+      <div class="fix-block">
+        <span class="fix-icon">→</span>
+        <span class="fix-text"><strong>建议：</strong>补充逐月/逐季营收爬坡表：客户数量 × 客单价 × 复购率，展示从 0 到 500 万的具体路径。例如：Q1 完成 3 家试点（5 万）、Q2 扩展至 15 家（50 万）、Q3 跨境启动（150 万）、Q4 规模化（295 万）。</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">融资额与盈利预测逻辑矛盾</span>
+    </div>
+    <div class="issue-body">
+      <p>Y1 预计净利润 <strong>30 万</strong>，融资总额 <strong>55 万</strong>。如果 Y1 就能实现盈利，为什么需要外部融资？且资金用途仅列出"设备硬件购置及系统研发约 21 万"，剩余 <strong>34 万用途不明</strong>。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">硬件成本在两个文件中不一致</span>
+    </div>
+    <div class="issue-body">
+      <table class="data-table">
+        <tr><th>来源</th><th>硬件+研发成本</th></tr>
+        <tr><td>DD 调查清单</td><td class="highlight">21 万元</td></tr>
+        <tr><td>项目计划书 6.19</td><td class="match">7.5–8.5 万元</td></tr>
+      </table>
+      <p style="margin-top:8px">差额超过 2 倍。两个数字必须统一，否则体现为预算管理混乱。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">毛利率与净利率的演变缺乏解释</span>
+    </div>
+    <div class="issue-body">
+      <p>清单设定毛利率 <strong>37–42%（恒定）</strong>，但净利率却从 <strong>6% → 12% → 17%</strong>，三年提升近 3 倍。在毛利率不变的前提下，意味着运营费用率需从 31–36% 压缩至 20–25%。</p>
+      <p style="margin-top:8px">清单没有解释运营杠杆的具体来源：是规模效应摊薄固定成本？是系统自动化减少人工？是客户留存降低获客费用？没有这些说明，净利率提升曲线缺乏支撑。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">ARR 指标前后不一致</span>
+    </div>
+    <div class="issue-body">
+      <p>Y1 ARR 标注为 <strong>"—"</strong>（无），但 500 万营收中理论上应有订阅+API 贡献。Y2 ARR = 45%（675 万）超过 Y1 总营收 500 万——这意味着 Y2 新增 ARR 远超存量基础，与"SaaS 渐进转型"叙事矛盾。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION: 市场 ==================== -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">PART 03</span>
+    <h2>市场与竞争分析问题</h2>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">TAM 定义混杂三种不同维度</span>
+    </div>
+    <div class="issue-body">
+      <p>"东南亚塑料市场""全球色母粒/配色助剂市场""澄海玩具产业"三者并列作为 TAM，但它们分属<strong>行业、产品、地域</strong>三个不同维度。应统一为"全球塑料配色服务市场"并给出具体金额（引用第三方报告如 Grand View Research / MarketsandMarkets）。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">SAM 区间过宽（5 倍浮动）且 SOM 未量化</span>
+    </div>
+    <div class="issue-body">
+      <p>SAM 估算 <strong>2.5–13 亿</strong>，浮动范围 5 倍，未提供估算方法论。SOM 仅列出约束条件（团队规模、地理覆盖、竞品防御），<strong>无具体数字</strong>——而项目计划书中有完整的三阶段 SOM 推演（20–50 万 → 100–200 万 → 200–500 万），应与之一致。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">竞争对手分析空洞</span>
+    </div>
+    <div class="issue-body">
+      <p>仅有"传统改性塑料配色服务商""中小型改性塑料厂商"的笼统描述，缺少：具体竞品名称、市场份额、定价对比、技术路线差异。建议至少列出 2–3 家具体竞品（如 DataColor、X-Rite 等传统 CCM 厂商以及国内同类 AI 配色方案商）并做差异化对比。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION: 产品 ==================== -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">PART 04</span>
+    <h2>产品、技术与组织问题</h2>
+  </div>
+
+  <div class="issue sev-critical">
+    <div class="issue-header">
+      <span class="sev-tag critical">严重</span>
+      <span class="issue-title">三.1(4)「产品核心技术优势」完全空白</span>
+    </div>
+    <div class="issue-body">
+      <p>这是尽调中投资方最关注的部分之一，当前为<strong>空</strong>。应详述：异构推理架构的技术壁垒、5 万条私有数据的护城河效应、边缘算力部署的成本优势、跨境合规交付模式的不可复制性。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">四项知识产权全部为「拟申请」— 零实际保护</span>
+    </div>
+    <div class="issue-body">
+      <p>所有专利和软著均处于"拟申请"状态，意味着当前<strong>没有任何知识产权壁垒</strong>。建议至少将软著申请推进到"已受理"阶段，并注明申请的紧迫时间线。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">产品阶段与商业预期严重错配</span>
+    </div>
+    <div class="issue-body">
+      <p>产品处于<strong>"技术理论论证及小规模技术逻辑试点闭环"</strong>，距离商业交付还需：系统部署 → 网络接口开发 → 前端开发 → 试点预生产 → 生产验收。在 Y1 完成所有这些并实现 500 万营收，时间线极度紧张。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">关键人物风险高度集中 & 监事独立性缺失</span>
+    </div>
+    <div class="issue-body">
+      <p>陈堉铭一人身兼：董事长、总经理、CEO、CFO、财务负责人、市场负责人。<strong>任何意外导致公司停摆。</strong></p>
+      <p style="margin-top:8px">邓思敏同时担任 CTO 和监事——监事应对董事会进行独立监督，这种安排违反治理常识。建议将监事角色分离给独立第三方或非执行团队成员。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">全员非全职 — 5 人均为 19 岁本科在读</span>
+    </div>
+    <div class="issue-body">
+      <p>零全职人员。在回答"如何保障项目推进"时，建议补充明确的<strong>时间投入承诺</strong>（如每人每周 ≥ 20 小时）和<strong>暑期/实习期全职计划</strong>。</p>
+    </div>
+  </div>
+
+  <div class="issue sev-important">
+    <div class="issue-header">
+      <span class="sev-tag important">重要</span>
+      <span class="issue-title">第5条疑似跳号 — 四.3 → 四.4 → 四.6（缺四.5）</span>
+    </div>
+    <div class="issue-body">
+      <p>第四部分（公司经营情况）编号从 3（产能及产量）直接跳到 6（未来三年经营规划），缺少第 5 项。应检查是否为排版遗漏。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION: 优化清单 ==================== -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-num">PART 05</span>
+    <h2>完整优化清单（按优先级）</h2>
+  </div>
+
+  <div style="margin-bottom:24px">
+    <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--red);margin-bottom:16px">🔴 紧急 — 必须修改</div>
+    <div class="check-row"><span class="dot red-dot"></span>修正第5条人员结构：删除重复「陈堉铭-会计」，替换为唐思涵的完整信息</div>
+    <div class="check-row"><span class="dot red-dot"></span>统一财务预测：与计划书 SOM 推演对齐，或给出 10 倍差异的充分说明</div>
+    <div class="check-row"><span class="dot red-dot"></span>修正估值数字：按 Y3 净利润 × PE 重算（建议 6,000–8,000 万）</div>
+    <div class="check-row"><span class="dot red-dot"></span>删除 HRM 引用：更新产品名称为实际技术架构</div>
+    <div class="check-row"><span class="dot red-dot"></span>补全三.1(4)「产品核心技术优势」</div>
+  </div>
+
+  <div style="margin-bottom:24px">
+    <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--amber);margin-bottom:16px">🟡 重要 — 强烈建议</div>
+    <div class="check-row"><span class="dot amber-dot"></span>拆解 Y1 营收路径：客户数 × 客单价 × 逐月爬坡模型</div>
+    <div class="check-row"><span class="dot amber-dot"></span>删除或重写 LTV/CAC：标注为预估值并给出计算假设</div>
+    <div class="check-row"><span class="dot amber-dot"></span>量化 TAM（具体金额 + 报告引用）和 SOM（采用计划书三阶段推演）</div>
+    <div class="check-row"><span class="dot amber-dot"></span>统一硬件成本数据</div>
+    <div class="check-row"><span class="dot amber-dot"></span>补充竞争对手分析：至少 2–3 家具体竞品 + 差异化对比表</div>
+    <div class="check-row"><span class="dot amber-dot"></span>说明运营杠杆来源：净利率 6%→17% 的驱动因素拆解</div>
+    <div class="check-row"><span class="dot amber-dot"></span>补充 Y1 ARR 预估值</div>
+    <div class="check-row"><span class="dot amber-dot"></span>说明 55 万融资款的具体分配明细</div>
+  </div>
+
+  <div>
+    <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--green);margin-bottom:16px">🟢 建议 — 提升竞争力</div>
+    <div class="check-row"><span class="dot green-dot"></span>分离监事角色：邓思敏不宜同时担任 CTO 和监事</div>
+    <div class="check-row"><span class="dot green-dot"></span>补充团队时间投入承诺（周均小时数 + 暑期全职计划）</div>
+    <div class="check-row"><span class="dot green-dot"></span>增加风险披露专节：技术风险、市场风险、团队风险、监管风险</div>
+    <div class="check-row"><span class="dot green-dot"></span>知识产权推进时间线：明确软著/专利的预期受理和授权日期</div>
+    <div class="check-row"><span class="dot green-dot"></span>补充已达成合作意向的佐证材料引用（协议稿 / MOU 等）</div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <span>审查基于：创投基金调查清单.pdf · 计划书6.19.pdf · 大学生基金尽职调查材料清单(7).docx · 科贝智色项目库</span>
+  <span>2026-06-29</span>
+</div>
+
+</main>
+
+</body>
+</html>

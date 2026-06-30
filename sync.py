@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""
+sync.py — 共享文件同步工具
+
+用法:
+  python sync.py             扫描 shared/ 并重建 index.html
+  python sync.py --watch     持续监听 shared/ 目录变化（需安装 watchdog）
+
+当您在 shared/ 中新增/更新/删除 .html 文件后运行此脚本，
+它会自动更新 files.json 和 index.html，使前端保持同步。
+"""
+import argparse
+import json
+import os
+import sys
+import time
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+SHARED_DIR = HERE / "shared"
+FILES_JSON = HERE / "files.json"
+BUILD_SCRIPT = HERE / "build_index.py"
+LOG_FILE = HERE / "workspace" / "sync.log"
+
+
+def log(msg):
+    ts = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{ts}] {msg}"
+    print(line)
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(line + "\n")
+
+
+def scan_shared():
+    files = []
+    if not SHARED_DIR.exists():
+        SHARED_DIR.mkdir(parents=True)
+        return files
+    for f in sorted(SHARED_DIR.iterdir()):
+        if f.suffix.lower() == ".html":
+            mtime = f.stat().st_mtime
+            tz = timezone(timedelta(hours=8))
+            ts = datetime.fromtimestamp(mtime, tz).strftime("%Y-%m-%d %H:%M:%S")
+            files.append({"name": f.name, "time": ts})
+    return files
+
+
+def build_index():
+    """调用 build_index.py 重建 index.html"""
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, str(BUILD_SCRIPT)],
+        capture_output=True, text=True, cwd=HERE
+    )
+    if result.returncode != 0:
+        log(f"build_index.py FAILED: {result.stderr}")
+        return False
+    for line in result.stdout.strip().split("\n"):
+        if line:
+            log(line)
+    return True
+
+
+def sync():
+    log("=== 开始同步 ===")
+    files = scan_shared()
+    with open(FILES_JSON, "w", encoding="utf-8") as f:
+        json.dump(files, f, ensure_ascii=False, indent=2)
+    log(f"files.json updated: {len(files)} file(s)")
+
+    if BUILD_SCRIPT.exists():
+        build_index()
+    else:
+        log("WARNING: build_index.py not found, index.html not rebuilt")
+
+    log("=== 同步完成 ===")
+
+
+def watch():
+    try:
+        from watchdog.observers import Observer
+        from watchdog.events import FileSystemEventHandler
+    except ImportError:
+        print("请先安装 watchdog: pip install watchdog")
+        sys.exit(1)
+
+    class Handler(FileSystemEventHandler):
+        def on_any_event(self, event):
+            if event.src_path.endswith(".html"):
+                time.sleep(0.5)  # debounce
+                sync()
+
+    log("=== 启动监听模式 ===")
+    observer = Observer()
+    observer.schedule(Handler(), str(SHARED_DIR), recursive=False)
+    observer.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="共享文件同步工具")
+    parser.add_argument("--watch", action="store_true", help="持续监听 shared/ 目录变化")
+    args = parser.parse_args()
+
+    if args.watch:
+        watch()
+    else:
+        sync()
