@@ -231,7 +231,7 @@ function render() {{
   const empty = document.getElementById('emptyState');
   if (empty) empty.remove();
   grid.innerHTML = files.map(f => `
-    <a class="card" href="/shared/${{encodeURIComponent(f.name)}}" target="_blank">
+    <a class="card" href="shared/${{f.name}}" target="_blank">
       <h3>${{f.name.replace('.html', '')}}</h3>
       <div class="meta">${{f.time}}</div>
     </a>
