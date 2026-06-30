@@ -7,3 +7,4 @@ cloudflare.toml
 .env
 .env.local
 .wrangler/
+keys/
