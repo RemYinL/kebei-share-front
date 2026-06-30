@@ -1,0 +1,4 @@
+[cloudflare]
+api_token = "your_cloudflare_api_token_here"
+account_id = "your_account_id_here"
+project_name = "kebei-share"

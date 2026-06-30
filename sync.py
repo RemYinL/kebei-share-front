@@ -22,6 +22,7 @@ SHARED_DIR = HERE / "shared"
 FILES_JSON = HERE / "files.json"
 BUILD_SCRIPT = HERE / "build_index.py"
 LOG_FILE = HERE / "workspace" / "sync.log"
+CF_CONFIG = HERE / "cloudflare.toml"
 
 
 def log(msg):
@@ -63,7 +64,7 @@ def build_index():
     return True
 
 
-def sync():
+def sync(skip_deploy=False):
     log("=== 开始同步 ===")
     files = scan_shared()
     with open(FILES_JSON, "w", encoding="utf-8") as f:
@@ -75,7 +76,84 @@ def sync():
     else:
         log("WARNING: build_index.py not found, index.html not rebuilt")
 
+    if not skip_deploy:
+        deploy_cloudflare()
+
     log("=== 同步完成 ===")
+
+
+def load_cf_config():
+    if not CF_CONFIG.exists():
+        return None
+    try:
+        import tomllib
+        with open(CF_CONFIG, "rb") as f:
+            cfg = tomllib.load(f)
+    except ImportError:
+        try:
+            import tomli as tomllib
+            with open(CF_CONFIG, "rb") as f:
+                cfg = tomllib.load(f)
+        except ImportError:
+            import configparser
+            cfg_parser = configparser.ConfigParser()
+            cfg_parser.read(CF_CONFIG)
+            section = cfg_parser["cloudflare"] if cfg_parser.has_section("cloudflare") else {}
+            return {
+                "api_token": section.get("api_token", ""),
+                "account_id": section.get("account_id", ""),
+                "project_name": section.get("project_name", "kebei-share"),
+            }
+    return cfg.get("cloudflare", {})
+
+
+def deploy_cloudflare():
+    cfg = load_cf_config()
+    if not cfg:
+        log("cloudflare.toml not found, skipping deploy")
+        return
+
+    token = cfg.get("api_token", "")
+    account_id = cfg.get("account_id", "")
+    project = cfg.get("project_name", "kebei-share")
+    if not token or not account_id:
+        log("CF config incomplete (api_token/account_id), skipping deploy")
+        return
+
+    try:
+        import requests
+    except ImportError:
+        log("requests not installed: pip install requests")
+        return
+
+    log("=== 部署到 Cloudflare Pages ===")
+    file_paths = ["index.html", "files.json"]
+    for fname in os.listdir(SHARED_DIR):
+        if fname.endswith(".html"):
+            file_paths.append(f"shared/{fname}")
+
+    manifest = {"files": {fp: {} for fp in file_paths}}
+    files_part = [("manifest", (None, json.dumps(manifest), "application/json"))]
+    for fp in file_paths:
+        with open(HERE / fp, "rb") as f:
+            files_part.append((fp, (fp, f.read(), "application/octet-stream")))
+
+    try:
+        resp = requests.post(
+            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects/{project}/deployments",
+            headers={"Authorization": f"Bearer {token}"},
+            files=files_part,
+            timeout=120
+        )
+        r = resp.json()
+        if r.get("success"):
+            dep = r.get("result", {})
+            log(f"部署成功! id={dep.get('id')}, url={dep.get('url')}")
+        else:
+            for e in r.get("errors", []):
+                log(f"部署失败: {e.get('message')}")
+    except Exception as e:
+        log(f"部署异常: {e}")
 
 
 def watch():
@@ -107,9 +185,13 @@ def watch():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="共享文件同步工具")
     parser.add_argument("--watch", action="store_true", help="持续监听 shared/ 目录变化")
+    parser.add_argument("--no-deploy", action="store_true", help="跳过 Cloudflare 部署")
+    parser.add_argument("--deploy-only", action="store_true", help="仅部署，不扫描/构建")
     args = parser.parse_args()
 
-    if args.watch:
+    if args.deploy_only:
+        deploy_cloudflare()
+    elif args.watch:
         watch()
     else:
-        sync()
+        sync(skip_deploy=args.no_deploy)
