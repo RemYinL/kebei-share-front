@@ -159,17 +159,6 @@ def build():
     box-shadow: 0 12px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.05) inset;
   }}
   .card:hover::before {{ opacity: 1; }}
-  .card-icon {{
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, rgba(124,92,252,0.15), rgba(249,115,22,0.1));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 16px;
-    font-size: 18px;
-  }}
   .card h3 {{
     font-size: 1rem;
     font-weight: 600;
@@ -183,11 +172,6 @@ def build():
     display: flex;
     align-items: center;
     gap: 6px;
-  }}
-  .card .meta svg {{
-    width: 14px;
-    height: 14px;
-    opacity: 0.5;
   }}
   .empty {{
     grid-column: 1 / -1;
@@ -229,7 +213,6 @@ def build():
 
   <div class="grid" id="fileGrid">
     <div class="empty" id="emptyState">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
       <p>暂无共享文件</p>
     </div>
   </div>
@@ -249,17 +232,8 @@ function render() {{
   if (empty) empty.remove();
   grid.innerHTML = files.map(f => `
     <a class="card" href="/shared/${{encodeURIComponent(f.name)}}" target="_blank">
-      <div class="card-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
-          <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/>
-          <polyline points="13 2 13 9 20 9"/>
-        </svg>
-      </div>
       <h3>${{f.name.replace('.html', '')}}</h3>
-      <div class="meta">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        ${{f.time}}
-      </div>
+      <div class="meta">${{f.time}}</div>
     </a>
   `).join('');
 }}
