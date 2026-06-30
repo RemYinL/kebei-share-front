@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}登录 · 科贝智色{% endblock %}
+{% block head %}
+<style>
+  .login-wrap {
+    min-height: 80vh; display: flex; align-items: center; justify-content: center;
+  }
+  .login-card {
+    width: 100%; max-width: 420px;
+    background: var(--surface);
+    backdrop-filter: blur(28px) saturate(1.5);
+    -webkit-backdrop-filter: blur(28px) saturate(1.5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 48px 36px 40px;
+  }
+  .login-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.04) inset;
+  }
+  .login-brand { text-align: center; margin-bottom: 36px; }
+  .login-brand h1 {
+    font-size: 1.4rem; font-weight: 600;
+    background: linear-gradient(135deg, #7c5cfc, #f97316);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: 1px;
+  }
+  .login-brand p { font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; }
+  .error { color: #f87171; font-size: 0.85rem; margin-top: 12px; text-align: center; min-height: 1.4em; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-brand">
+      <h1>科贝智色</h1>
+      <p>多端文件共享 · 安全访问</p>
+    </div>
+    <form onsubmit="return handleLogin(event)">
+      <div class="field">
+        <label>工号</label>
+        <input type="text" id="userId" placeholder="请输入工号" autocomplete="off" required>
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <input type="password" id="password" placeholder="请输入密码" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;border-radius:var(--radius-sm);font-size:0.95rem;">登 录</button>
+      <div class="error" id="errorMsg"></div>
+    </form>
+  </div>
+</div>
+<script>
+function handleLogin(e) {
+  e.preventDefault();
+  var id = document.getElementById('userId').value.trim();
+  var pw = document.getElementById('password').value;
+  var err = document.getElementById('errorMsg');
+  fetch('/api/login', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({id:id, password:pw})
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) {
+      sessionStorage.setItem('kebei_user', JSON.stringify(data.user));
+      if (data.force_change) {
+        window.location.href = '/account?tab=password';
+      } else {
+        window.location.href = '/';
+      }
+    } else {
+      err.textContent = data.message || '登录失败';
+    }
+  }).catch(function(){
+    err.textContent = '网络错误';
+  });
+  return false;
+}
+</script>
+{% endblock %}

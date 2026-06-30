@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+  .hero { text-align: center; margin-bottom: 48px; }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.6) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .hero p { font-size: 1rem; color: var(--text-secondary); }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .toolbar-left { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .file-card {
+    background: var(--surface);
+    backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: all 0.3s;
+    position: relative; overflow: hidden;
+  }
+  .file-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-hover), transparent);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .file-card:hover { background: var(--surface-hover); border-color: var(--border-hover); transform: translateY(-2px); }
+  .file-card:hover::before { opacity: 1; }
+  .file-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; word-break: break-all; }
+  .file-card .meta { font-size: 0.8rem; color: var(--text-secondary); }
+  .file-card .actions { display: flex; gap: 6px; margin-top: 12px; }
+  .file-card .actions button { padding: 4px 12px; font-size: 0.78rem; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); cursor: pointer; transition: 0.2s; font-family: var(--font); }
+  .file-card .actions button:hover { background: var(--surface-hover); color: var(--text); }
+  .file-card .actions button.danger:hover { background: rgba(248,113,113,0.1); color: #f87171; border-color: rgba(248,113,113,0.3); }
+  .file-card .visibility-badge {
+    display: inline-block; font-size: 0.72rem; padding: 2px 8px;
+    border-radius: 10px; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-muted); margin-top: 6px;
+  }
+  .empty-state {
+    grid-column: 1 / -1; text-align: center; padding: 80px 20px; color: var(--text-muted);
+  }
+  .upload-dropzone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 40px; text-align: center; cursor: pointer;
+    transition: 0.3s; margin-bottom: 24px;
+  }
+  .upload-dropzone:hover, .upload-dropzone.dragover {
+    border-color: var(--accent); background: var(--accent-glow);
+  }
+  .upload-dropzone p { color: var(--text-secondary); font-size: 0.9rem; }
+  .upload-dropzone .hint { color: var(--text-muted); font-size: 0.8rem; margin-top: 6px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="hero">
+  <h1>多端文件共享</h1>
+  <p>内部文件 · 安全共享</p>
+</div>
+
+<div id="uploadZone" class="upload-dropzone" style="display:none;">
+  <p>拖拽 HTML 文件到此处上传</p>
+  <p class="hint">或点击选择文件</p>
+  <input type="file" id="fileInput" accept=".html" style="display:none;" multiple>
+</div>
+
+<div class="toolbar">
+  <div class="toolbar-left">
+    <span id="fileCount">0 个文件</span>
+  </div>
+</div>
+
+<div class="grid" id="fileGrid">
+  <div class="empty-state" id="emptyState">
+    <p>暂无共享文件</p>
+  </div>
+</div>
+
+<script>
+var user = checkAuth();
+if (!user) throw 'no auth';
+renderBadge(user);
+
+var canManage = user.role === 'admin' || user.role === 'editor';
+
+function loadFiles() {
+  fetch('/api/files').then(function(r){ return r.json(); }).then(function(data){
+    if (!data.success) { toast(data.message||'加载失败','error'); return; }
+    renderFiles(data.files, data.permissions);
+  });
+}
+
+function renderFiles(files, perms) {
+  var grid = document.getElementById('fileGrid');
+  var empty = document.getElementById('emptyState');
+  var count = document.getElementById('fileCount');
+  count.textContent = files.length + ' 个文件';
+  if (!files.length) {
+    grid.innerHTML = '<div class="empty-state"><p>暂无共享文件</p></div>';
+    return;
+  }
+  grid.innerHTML = files.map(function(f){
+    var fp = perms[f.name] || {visibility:'all'};
+    var visLabel = '';
+    if (fp.visibility === 'all') visLabel = '全员可见';
+    else if (fp.visibility.indexOf('role:') === 0) visLabel = fp.visibility.replace('role:','') + '及以上可见';
+    else if (fp.visibility === 'specific') visLabel = '指定用户可见';
+    var actions = '';
+    if (canManage) {
+      actions = '<div class="actions">'
+        + '<button onclick="viewFile(\'' + f.name + '\')">查看</button>'
+        + '<button onclick="deleteFile(\'' + f.name + '\')" class="danger">删除</button>'
+        + '</div>';
+    } else {
+      actions = '<div class="actions"><button onclick="viewFile(\'' + f.name + '\')">查看</button></div>';
+    }
+    return '<div class="file-card">'
+      + '<h3>' + f.name.replace('.html','') + '</h3>'
+      + '<div class="meta">' + f.time + '</div>'
+      + (visLabel ? '<div class="visibility-badge">' + visLabel + '</div>' : '')
+      + actions + '</div>';
+  }).join('');
+}
+
+function viewFile(name) {
+  window.open('/shared/' + encodeURIComponent(name), '_blank');
+}
+
+function deleteFile(name) {
+  if (!confirm('确定删除 ' + name + ' ？')) return;
+  fetch('/api/files/' + encodeURIComponent(name), {method:'DELETE'}).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) { toast('删除成功','success'); loadFiles(); }
+    else { toast(data.message||'删除失败','error'); }
+  });
+}
+
+if (canManage) {
+  var zone = document.getElementById('uploadZone');
+  zone.style.display = 'block';
+  zone.addEventListener('click', function(){ document.getElementById('fileInput').click(); });
+  zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', function(){ zone.classList.remove('dragover'); });
+  zone.addEventListener('drop', function(e){
+    e.preventDefault(); zone.classList.remove('dragover');
+    uploadFiles(e.dataTransfer.files);
+  });
+  document.getElementById('fileInput').addEventListener('change', function(){
+    uploadFiles(this.files);
+  });
+}
+
+function uploadFiles(files) {
+  var formData = new FormData();
+  var ok = false;
+  for (var i = 0; i < files.length; i++) {
+    if (files[i].name.endsWith('.html')) {
+      formData.append('files', files[i]);
+      ok = true;
+    }
+  }
+  if (!ok) { toast('仅支持 .html 文件','error'); return; }
+  fetch('/api/files/upload', {method:'POST', body:formData}).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) { toast('上传成功 ' + data.count + ' 个文件','success'); loadFiles(); }
+    else { toast(data.message||'上传失败','error'); }
+  });
+}
+
+loadFiles();
+</script>
+{% endblock %}

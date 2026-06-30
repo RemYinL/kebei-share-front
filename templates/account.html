@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block title %}账户管理 · 科贝智色{% endblock %}
+{% block head %}
+<style>
+  .tabs { display: flex; gap: 4px; margin-bottom: 32px; flex-wrap: wrap; }
+  .tab {
+    padding: 10px 20px; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    font-size: 0.88rem; cursor: pointer; transition: 0.2s;
+    color: var(--text-secondary); border: 1px solid transparent; border-bottom: none;
+    font-family: var(--font);
+  }
+  .tab:hover { color: var(--text); background: var(--surface); }
+  .tab.active {
+    color: var(--text); background: var(--surface);
+    border-color: var(--border); position: relative;
+  }
+  .tab.active::after {
+    content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 1px;
+    background: var(--bg);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .info-grid .field { margin-bottom: 0; }
+  .info-label { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; }
+  .info-value { font-size: 1rem; padding: 8px 0; }
+  .form-actions { margin-top: 24px; display: flex; gap: 12px; }
+  .member-table { width: 100%; border-collapse: collapse; }
+  .member-table th, .member-table td {
+    text-align: left; padding: 12px 16px;
+    border-bottom: 1px solid var(--border); font-size: 0.9rem;
+  }
+  .member-table th { color: var(--text-secondary); font-weight: 500; font-size: 0.8rem; }
+  .member-table tr:hover td { background: var(--surface-hover); }
+  .role-select { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 4px 8px; font-size: 0.85rem; font-family: var(--font); cursor: pointer; }
+  .role-select option { background: #1a1a24; }
+  .perm-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+  }
+  .perm-item:last-child { border-bottom: none; }
+  .perm-item .perm-name { font-weight: 500; font-size: 0.9rem; }
+  .perm-item .perm-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .perm-item .perm-controls select { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 4px 8px; font-size: 0.8rem; font-family: var(--font); cursor: pointer; }
+  .perm-item .perm-controls select option { background: #1a1a24; }
+  @media (max-width: 640px) {
+    .info-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="card" style="padding:0;overflow:hidden;">
+  <div style="padding:24px 24px 0;">
+    <div class="tabs" id="tabBar">
+      <div class="tab active" data-tab="info">基本信息</div>
+      <div class="tab" data-tab="password">修改密码</div>
+      <div class="tab" data-tab="permissions" id="tabPermissions" style="display:none;">文件权限</div>
+      <div class="tab" data-tab="members" id="tabMembers" style="display:none;">成员管理</div>
+    </div>
+  </div>
+
+  <!-- Page 1: 基本信息 -->
+  <div class="tab-content active" id="page-info" style="padding:0 24px 24px;">
+    <div class="info-grid">
+      <div class="field">
+        <div class="info-label">姓名</div>
+        <input type="text" id="editName" placeholder="姓名">
+      </div>
+      <div class="field">
+        <div class="info-label">工号</div>
+        <div class="info-value" id="displayId"></div>
+      </div>
+      <div class="field">
+        <div class="info-label">所属学院</div>
+        <input type="text" id="editDepartment" placeholder="所属学院">
+      </div>
+      <div class="field">
+        <div class="info-label">岗位</div>
+        <input type="text" id="editPosition" placeholder="岗位">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveProfile()">保存修改</button>
+    </div>
+  </div>
+
+  <!-- Page 2: 修改密码 -->
+  <div class="tab-content" id="page-password" style="padding:0 24px 24px;">
+    <div style="max-width:400px;">
+      <div class="field">
+        <label>当前密码</label>
+        <input type="password" id="oldPassword" placeholder="输入当前密码">
+      </div>
+      <div class="field">
+        <label>新密码</label>
+        <input type="password" id="newPassword" placeholder="包含大小写字母+数字，至少8位">
+      </div>
+      <div class="field">
+        <label>确认新密码</label>
+        <input type="password" id="confirmPassword" placeholder="再次输入新密码">
+      </div>
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;">
+        密码要求：至少8位，包含大写字母、小写字母和数字
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="changePassword()">修改密码</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 3: 文件权限 (admin/editor) -->
+  <div class="tab-content" id="page-permissions" style="padding:0 24px 24px;">
+    <div style="margin-bottom:16px;font-size:0.85rem;color:var(--text-secondary);">
+      设置每个文件的可见范围
+    </div>
+    <div id="permList"></div>
+  </div>
+
+  <!-- Page 4: 成员管理 (admin only) -->
+  <div class="tab-content" id="page-members" style="padding:0 24px 24px;">
+    <div style="margin-bottom:16px;font-size:0.85rem;color:var(--text-secondary);">
+      管理用户角色与权限
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="member-table">
+        <thead><tr>
+          <th>工号</th><th>姓名</th><th>学院</th><th>岗位</th><th>角色</th><th>操作</th>
+        </tr></thead>
+        <tbody id="memberBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+var user = checkAuth();
+if (!user) throw 'no auth';
+renderBadge(user);
+
+// Show admin/editor tabs
+if (user.role === 'admin' || user.role === 'editor') {
+  document.getElementById('tabPermissions').style.display = '';
+}
+if (user.role === 'admin') {
+  document.getElementById('tabMembers').style.display = '';
+}
+
+// Tab switching
+var tabs = document.querySelectorAll('.tab');
+tabs.forEach(function(t){
+  t.addEventListener('click', function(){
+    tabs.forEach(function(x){ x.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(x){ x.classList.remove('active'); });
+    t.classList.add('active');
+    document.getElementById('page-' + t.dataset.tab).classList.add('active');
+  });
+});
+
+// Load profile
+function loadProfile() {
+  fetch('/api/user/profile').then(function(r){ return r.json(); }).then(function(data){
+    if (!data.success) { toast(data.message||'加载失败','error'); return; }
+    var u = data.user;
+    document.getElementById('displayId').textContent = u.id;
+    document.getElementById('editName').value = u.name;
+    document.getElementById('editDepartment').value = u.department || '';
+    document.getElementById('editPosition').value = u.position || '';
+  });
+}
+
+function saveProfile() {
+  var body = {
+    name: document.getElementById('editName').value.trim(),
+    department: document.getElementById('editDepartment').value.trim(),
+    position: document.getElementById('editPosition').value.trim()
+  };
+  fetch('/api/user/profile', {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) {
+      toast('保存成功','success');
+      var u = JSON.parse(sessionStorage.getItem('kebei_user'));
+      u.name = body.name;
+      sessionStorage.setItem('kebei_user', JSON.stringify(u));
+      renderBadge(u);
+    } else {
+      toast(data.message||'保存失败','error');
+    }
+  });
+}
+
+function changePassword() {
+  var old = document.getElementById('oldPassword').value;
+  var np = document.getElementById('newPassword').value;
+  var cp = document.getElementById('confirmPassword').value;
+  if (np !== cp) { toast('两次密码不一致','error'); return; }
+  if (np.length < 8) { toast('密码至少8位','error'); return; }
+  if (!/[A-Z]/.test(np)) { toast('密码需要包含大写字母','error'); return; }
+  if (!/[a-z]/.test(np)) { toast('密码需要包含小写字母','error'); return; }
+  if (!/[0-9]/.test(np)) { toast('密码需要包含数字','error'); return; }
+  fetch('/api/change-password', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({old_password: old, new_password: np})
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) {
+      toast('密码修改成功','success');
+      document.getElementById('oldPassword').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('confirmPassword').value = '';
+    } else {
+      toast(data.message||'修改失败','error');
+    }
+  });
+}
+
+// File permissions
+function loadPermissions() {
+  if (user.role !== 'admin' && user.role !== 'editor') return;
+  fetch('/api/files').then(function(r){ return r.json(); }).then(function(data){
+    if (!data.success) return;
+    var list = document.getElementById('permList');
+    var files = data.files;
+    var perms = data.permissions;
+    if (!files.length) { list.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center;">暂无文件</div>'; return; }
+    list.innerHTML = files.map(function(f){
+      var p = perms[f.name] || {visibility:'all', allowed_users:[]};
+      return '<div class="perm-item">'
+        + '<div><div class="perm-name">' + f.name.replace('.html','') + '</div><div style="font-size:0.75rem;color:var(--text-muted);">' + f.time + '</div></div>'
+        + '<div class="perm-controls">'
+        + '<select onchange="updatePerm(\'' + f.name + '\',this.value)">'
+        + '<option value="all"' + (p.visibility==='all'?' selected':'') + '>全员可见</option>'
+        + '<option value="role:viewer"' + (p.visibility==='role:viewer'?' selected':'') + '>查看者及以上</option>'
+        + '<option value="role:editor"' + (p.visibility==='role:editor'?' selected':'') + '>编辑者及以上</option>'
+        + '<option value="role:admin"' + (p.visibility==='role:admin'?' selected':'') + '>仅管理员</option>'
+        + '</select>'
+        + '</div></div>';
+    }).join('');
+  });
+}
+
+function updatePerm(fileName, visibility) {
+  fetch('/api/file-permissions', {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({file: fileName, visibility: visibility})
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) toast('权限已更新','success');
+    else toast(data.message||'更新失败','error');
+  });
+}
+
+// Member management (admin)
+function loadMembers() {
+  if (user.role !== 'admin') return;
+  fetch('/api/users').then(function(r){ return r.json(); }).then(function(data){
+    if (!data.success) return;
+    var tbody = document.getElementById('memberBody');
+    var roleLabels = {admin:'管理员',editor:'编辑者',viewer:'查看者'};
+    tbody.innerHTML = data.users.map(function(u){
+      return '<tr>'
+        + '<td>' + u.id + '</td>'
+        + '<td>' + u.name + '</td>'
+        + '<td>' + (u.department||'') + '</td>'
+        + '<td>' + (u.position||'') + '</td>'
+        + '<td>'
+        + '<select class="role-select" onchange="updateRole(\'' + u.id + '\',this.value)">'
+        + '<option value="viewer"' + (u.role==='viewer'?' selected':'') + '>查看者</option>'
+        + '<option value="editor"' + (u.role==='editor'?' selected':'') + '>编辑者</option>'
+        + '<option value="admin"' + (u.role==='admin'?' selected':'') + '>管理员</option>'
+        + '</select>'
+        + '</td>'
+        + '<td><button class="btn" style="padding:2px 10px;font-size:0.78rem;" onclick="resetPassword(\'' + u.id + '\')'>重置密码</button></td>'
+        + '</tr>';
+    }).join('');
+  });
+}
+
+function updateRole(userId, role) {
+  fetch('/api/users/' + userId, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({role: role})
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) toast('角色已更新','success');
+    else toast(data.message||'更新失败','error');
+  });
+}
+
+function resetPassword(userId) {
+  if (!confirm('确定重置该用户密码为 Kebei2024 ？')) return;
+  fetch('/api/users/' + userId + '/reset-password', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({password: 'Kebei2024'})
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) toast('密码已重置为 Kebei2024','success');
+    else toast(data.message||'重置失败','error');
+  });
+}
+
+// Tab visibility from URL param
+var params = new URLSearchParams(window.location.search);
+var tab = params.get('tab');
+if (tab) {
+  document.querySelectorAll('.tab').forEach(function(t){
+    if (t.dataset.tab === tab) t.click();
+  });
+}
+
+loadProfile();
+loadPermissions();
+loadMembers();
+</script>
+{% endblock %}
