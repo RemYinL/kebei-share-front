@@ -4,3 +4,6 @@ __pycache__/
 *.log
 workspace/sync.log
 cloudflare.toml
+.env
+.env.local
+.wrangler/

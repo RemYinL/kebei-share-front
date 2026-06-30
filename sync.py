@@ -108,6 +108,7 @@ def load_cf_config():
 
 
 def deploy_cloudflare():
+    import subprocess
     cfg = load_cf_config()
     if not cfg:
         log("cloudflare.toml not found, skipping deploy")
@@ -120,40 +121,27 @@ def deploy_cloudflare():
         log("CF config incomplete (api_token/account_id), skipping deploy")
         return
 
-    try:
-        import requests
-    except ImportError:
-        log("requests not installed: pip install requests")
-        return
-
     log("=== 部署到 Cloudflare Pages ===")
-    file_paths = ["index.html", "files.json"]
-    for fname in os.listdir(SHARED_DIR):
-        if fname.endswith(".html"):
-            file_paths.append(f"shared/{fname}")
+    env = os.environ.copy()
+    env["CLOUDFLARE_API_TOKEN"] = token
+    env["CLOUDFLARE_ACCOUNT_ID"] = account_id
 
-    manifest = {"files": {fp: {} for fp in file_paths}}
-    files_part = [("manifest", (None, json.dumps(manifest), "application/json"))]
-    for fp in file_paths:
-        with open(HERE / fp, "rb") as f:
-            files_part.append((fp, (fp, f.read(), "application/octet-stream")))
-
-    try:
-        resp = requests.post(
-            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects/{project}/deployments",
-            headers={"Authorization": f"Bearer {token}"},
-            files=files_part,
-            timeout=120
-        )
-        r = resp.json()
-        if r.get("success"):
-            dep = r.get("result", {})
-            log(f"部署成功! id={dep.get('id')}, url={dep.get('url')}")
-        else:
-            for e in r.get("errors", []):
-                log(f"部署失败: {e.get('message')}")
-    except Exception as e:
-        log(f"部署异常: {e}")
+    result = subprocess.run(
+        ["npx", "-y", "wrangler@latest", "pages", "deploy",
+         "--project-name", project, "--branch", "main", "."],
+        capture_output=True, text=True, cwd=HERE, env=env, timeout=180
+    )
+    for line in result.stdout.strip().split("\n"):
+        if line:
+            log(line.strip())
+    if result.stderr:
+        for line in result.stderr.strip().split("\n"):
+            if line and "wrangler" in line.lower():
+                log(line.strip())
+    if result.returncode != 0:
+        log(f"部署失败 (rc={result.returncode})")
+    else:
+        log("部署成功!")
 
 
 def watch():
