@@ -69,18 +69,16 @@
     border-radius: 20px; font-size: 0.82rem;
   }
   .role-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
-  .role-dot.admin { background: #7c5cfc; }
-  .role-dot.editor { background: #f97316; }
-  .role-dot.viewer { background: #34d399; }
+  .role-dot.admin { background: #7c5cfc; box-shadow: 0 0 6px rgba(124,92,252,0.5); }
+  .role-dot.editor { background: #f97316; box-shadow: 0 0 6px rgba(249,115,22,0.5); }
+  .role-dot.viewer { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.5); }
   .user-badge .name { font-weight: 500; }
   .user-badge .role-label { color: var(--text-muted); font-size: 0.75rem; }
-  .user-badge .link { color: var(--text-secondary); cursor: pointer; margin-left: 6px; }
-  .user-badge .link:hover { color: var(--text); }
   .btn {
     padding: 8px 18px; border-radius: 20px; border: 1px solid var(--border);
     font-size: 0.82rem; font-family: var(--font); cursor: pointer; transition: 0.2s;
     background: transparent; color: var(--text-secondary); text-decoration: none;
-    display: inline-flex; align-items: center; gap: 6px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   }
   .btn:hover { background: var(--surface-hover); color: var(--text); }
   .btn-primary {
@@ -121,6 +119,12 @@
     appearance: none; cursor: pointer;
   }
   .field select option { background: #1a1a24; color: var(--text); }
+  .field input:read-only {
+    opacity: 0.6; cursor: default;
+  }
+  .field input:read-only:focus {
+    border-color: var(--border); box-shadow: none;
+  }
   .toast {
     position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
     z-index: 999; padding: 12px 24px;
@@ -139,6 +143,39 @@
   }
 </style>
 {% block head %}{% endblock %}
+<script>
+var _user = null;
+
+function checkAuth() {
+  var raw = sessionStorage.getItem('kebei_user');
+  if (!raw) { window.location.href = '/login'; return null; }
+  try { _user = JSON.parse(raw); return _user; } catch(e) { window.location.href = '/login'; return null; }
+}
+
+function renderBadge(user) {
+  var b = document.getElementById('userBadge');
+  if (!b) return;
+  var roleLabels = {'admin':'管理员','editor':'编辑者','viewer':'查看者'};
+  b.innerHTML = '<span class="user-badge">'
+    + '<span class="role-dot ' + user.role + '"></span>'
+    + '<span class="name">' + user.name + '</span>'
+    + '<span class="role-label">' + (roleLabels[user.role]||user.role) + '</span>'
+    + '</span>';
+}
+
+function handleLogout() {
+  fetch('/api/logout', {method:'POST'}).then(function(){
+    sessionStorage.removeItem('kebei_user');
+    window.location.href = '/login';
+  });
+}
+
+function toast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + (type||'');
+  setTimeout(function(){ t.className = 'toast'; }, 3000);
+}
+</script>
 </head>
 <body>
 <div id="toast" class="toast"></div>
@@ -152,7 +189,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
       <a href="/account" class="btn">账户</a>
-      <a href="https://kebeizhise.cn" class="logo-right" target="_blank">
+      <a href="/" class="logo-right">
         <img src="/static/logo2.png" alt="科贝智色">
         <span>科贝智色</span>
       </a>
@@ -162,35 +199,6 @@
   {% block content %}{% endblock %}
   <footer><p>Powered by 科贝智色 &middot; 内部文件共享平台</p></footer>
 </div>
-<script>
-var _user = null;
-function checkAuth() {
-  var raw = sessionStorage.getItem('kebei_user');
-  if (!raw) { window.location.href = '/login'; return null; }
-  try { _user = JSON.parse(raw); return _user; } catch(e) { window.location.href = '/login'; return null; }
-}
-function renderBadge(user) {
-  var b = document.getElementById('userBadge');
-  if (!b) return;
-  var roleLabels = {'admin':'管理员','editor':'编辑者','viewer':'查看者'};
-  b.innerHTML = '<span class="user-badge">'
-    + '<span class="role-dot ' + user.role + '"></span>'
-    + '<span class="name">' + user.name + '</span>'
-    + '<span class="role-label">' + (roleLabels[user.role]||user.role) + '</span>'
-    + '</span>';
-}
-function handleLogout() {
-  fetch('/api/logout', {method:'POST'}).then(function(){
-    sessionStorage.removeItem('kebei_user');
-    window.location.href = '/login';
-  });
-}
-function toast(msg, type) {
-  var t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast show ' + (type||'');
-  setTimeout(function(){ t.className = 'toast'; }, 3000);
-}
-</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

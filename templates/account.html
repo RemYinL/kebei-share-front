@@ -23,7 +23,7 @@
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .info-grid .field { margin-bottom: 0; }
   .info-label { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; }
-  .info-value { font-size: 1rem; padding: 8px 0; }
+  .info-value { font-size: 1rem; padding: 12px 16px; border-bottom: 1px solid var(--border); }
   .form-actions { margin-top: 24px; display: flex; gap: 12px; }
   .member-table { width: 100%; border-collapse: collapse; }
   .member-table th, .member-table td {
@@ -32,6 +32,16 @@
   }
   .member-table th { color: var(--text-secondary); font-weight: 500; font-size: 0.8rem; }
   .member-table tr:hover td { background: var(--surface-hover); }
+  .member-table input {
+    width: 100%; padding: 6px 10px;
+    background: transparent; border: 1px solid transparent;
+    border-radius: 4px; color: var(--text); font-size: 0.9rem; font-family: var(--font);
+    outline: none; transition: 0.2s;
+  }
+  .member-table input:focus {
+    border-color: var(--accent); background: rgba(255,255,255,0.04);
+  }
+  .member-table input:hover { border-color: var(--border); }
   .role-select { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 4px 8px; font-size: 0.85rem; font-family: var(--font); cursor: pointer; }
   .role-select option { background: #1a1a24; }
   .perm-item {
@@ -43,12 +53,70 @@
   .perm-item .perm-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .perm-item .perm-controls select { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 4px 8px; font-size: 0.8rem; font-family: var(--font); cursor: pointer; }
   .perm-item .perm-controls select option { background: #1a1a24; }
+  .hr-toggle {
+    appearance: none; width: 36px; height: 20px;
+    background: var(--border); border-radius: 10px;
+    position: relative; cursor: pointer; transition: 0.2s; flex-shrink: 0;
+  }
+  .hr-toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--text-muted); transition: 0.2s;
+  }
+  .hr-toggle:checked { background: var(--accent); }
+  .hr-toggle:checked::after { left: 18px; background: #fff; }
+  .hr-cell { min-width: 60px; text-align: center; }
+  .action-cell { white-space: nowrap; }
+  /* First-login modal */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-card {
+    width: 100%; max-width: 440px;
+    background: var(--surface);
+    backdrop-filter: blur(28px) saturate(1.5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 32px 28px;
+    margin: 24px;
+  }
+  .modal-card h2 { font-size: 1.1rem; margin-bottom: 6px; }
+  .modal-card p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 24px; }
   @media (max-width: 640px) {
     .info-grid { grid-template-columns: 1fr; }
   }
 </style>
 {% endblock %}
 {% block content %}
+<!-- First-login modal -->
+<div id="firstLoginModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <h2>首次登录</h2>
+    <p>请修改初始密码后继续使用</p>
+    <div class="field">
+      <label>当前密码</label>
+      <input type="password" id="flOldPassword" placeholder="输入当前密码">
+    </div>
+    <div class="field">
+      <label>新密码</label>
+      <input type="password" id="flNewPassword" placeholder="包含大小写字母+数字，至少8位">
+    </div>
+    <div class="field">
+      <label>确认新密码</label>
+      <input type="password" id="flConfirmPassword" placeholder="再次输入新密码">
+    </div>
+    <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;">
+      密码要求：至少8位，包含大写字母、小写字母和数字
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:12px;border-radius:var(--radius-sm);font-size:0.95rem;" onclick="handleFirstLogin()">确认修改</button>
+    <div id="flError" style="color:#f87171;font-size:0.85rem;margin-top:12px;text-align:center;min-height:1.4em;"></div>
+  </div>
+</div>
+
+<a href="/" class="btn" style="margin-bottom:16px;">← 返回</a>
 <div class="card" style="padding:0;overflow:hidden;">
   <div style="padding:24px 24px 0;">
     <div class="tabs" id="tabBar">
@@ -61,10 +129,11 @@
 
   <!-- Page 1: 基本信息 -->
   <div class="tab-content active" id="page-info" style="padding:0 24px 24px;">
-    <div class="info-grid">
+    <div class="info-grid" id="infoFields">
       <div class="field">
         <div class="info-label">姓名</div>
-        <input type="text" id="editName" placeholder="姓名">
+        <div id="infoNameDisplay" class="info-value"></div>
+        <input type="text" id="editName" placeholder="姓名" style="display:none;">
       </div>
       <div class="field">
         <div class="info-label">工号</div>
@@ -72,14 +141,16 @@
       </div>
       <div class="field">
         <div class="info-label">所属学院</div>
-        <input type="text" id="editDepartment" placeholder="所属学院">
+        <div id="infoDepartmentDisplay" class="info-value"></div>
+        <input type="text" id="editDepartment" placeholder="所属学院" style="display:none;">
       </div>
       <div class="field">
         <div class="info-label">岗位</div>
-        <input type="text" id="editPosition" placeholder="岗位">
+        <div id="infoPositionDisplay" class="info-value"></div>
+        <input type="text" id="editPosition" placeholder="岗位" style="display:none;">
       </div>
     </div>
-    <div class="form-actions">
+    <div class="form-actions" id="profileActions" style="display:none;">
       <button class="btn btn-primary" onclick="saveProfile()">保存修改</button>
     </div>
   </div>
@@ -116,15 +187,15 @@
     <div id="permList"></div>
   </div>
 
-  <!-- Page 4: 成员管理 (admin only) -->
+  <!-- Page 4: 成员管理 (admin + HR) -->
   <div class="tab-content" id="page-members" style="padding:0 24px 24px;">
     <div style="margin-bottom:16px;font-size:0.85rem;color:var(--text-secondary);">
-      管理用户角色与权限
+      管理用户角色与权限 &middot; 重置密码格式：Kebei + 工号
     </div>
     <div style="overflow-x:auto;">
       <table class="member-table">
         <thead><tr>
-          <th>工号</th><th>姓名</th><th>学院</th><th>岗位</th><th>角色</th><th>操作</th>
+          <th>工号</th><th>姓名</th><th>学院</th><th>岗位</th><th>角色</th><th>HR</th><th>操作</th>
         </tr></thead>
         <tbody id="memberBody"></tbody>
       </table>
@@ -137,34 +208,93 @@ var user = checkAuth();
 if (!user) throw 'no auth';
 renderBadge(user);
 
-// Show admin/editor tabs
-if (user.role === 'admin' || user.role === 'editor') {
+var isAdmin = user.role === 'admin';
+var isEditor = user.role === 'editor';
+
+// First-login modal (takes priority over everything)
+if (user.first_login) {
+  document.getElementById('firstLoginModal').style.display = '';
+}
+
+function handleFirstLogin() {
+  var old = document.getElementById('flOldPassword').value;
+  var np = document.getElementById('flNewPassword').value;
+  var cp = document.getElementById('flConfirmPassword').value;
+  var err = document.getElementById('flError');
+  if (np !== cp) { err.textContent = '两次密码不一致'; return; }
+  if (np.length < 8) { err.textContent = '密码至少8位'; return; }
+  if (!/[A-Z]/.test(np)) { err.textContent = '密码需要包含大写字母'; return; }
+  if (!/[a-z]/.test(np)) { err.textContent = '密码需要包含小写字母'; return; }
+  if (!/[0-9]/.test(np)) { err.textContent = '密码需要包含数字'; return; }
+  fetch('/api/change-password', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({old_password: old, new_password: np})
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) {
+      document.getElementById('firstLoginModal').style.display = 'none';
+      var u = JSON.parse(sessionStorage.getItem('kebei_user'));
+      u.first_login = false;
+      sessionStorage.setItem('kebei_user', JSON.stringify(u));
+      toast('密码修改成功，请重新登录','success');
+    } else {
+      err.textContent = data.message || '修改失败';
+    }
+  });
+}
+
+// Tab visibility
+if (isAdmin || isEditor) {
   document.getElementById('tabPermissions').style.display = '';
 }
-if (user.role === 'admin') {
+if (isAdmin && user.hr) {
   document.getElementById('tabMembers').style.display = '';
+}
+
+function switchTab(tabName) {
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.tab-content').forEach(function(c){ c.classList.remove('active'); });
+  var tab = document.querySelector('.tab[data-tab="' + tabName + '"]');
+  if (tab) tab.classList.add('active');
+  var page = document.getElementById('page-' + tabName);
+  if (page) page.classList.add('active');
 }
 
 // Tab switching
 var tabs = document.querySelectorAll('.tab');
 tabs.forEach(function(t){
-  t.addEventListener('click', function(){
-    tabs.forEach(function(x){ x.classList.remove('active'); });
-    document.querySelectorAll('.tab-content').forEach(function(x){ x.classList.remove('active'); });
-    t.classList.add('active');
-    document.getElementById('page-' + t.dataset.tab).classList.add('active');
-  });
+  t.addEventListener('click', function(){ switchTab(t.dataset.tab); });
 });
 
-// Load profile
+// Tab activation from URL param (direct, not via click)
+var params = new URLSearchParams(window.location.search);
+var tabFromUrl = params.get('tab');
+if (tabFromUrl) {
+  switchTab(tabFromUrl);
+}
+
+// Page 1: Profile view/edit
 function loadProfile() {
   fetch('/api/user/profile').then(function(r){ return r.json(); }).then(function(data){
     if (!data.success) { toast(data.message||'加载失败','error'); return; }
     var u = data.user;
     document.getElementById('displayId').textContent = u.id;
-    document.getElementById('editName').value = u.name;
-    document.getElementById('editDepartment').value = u.department || '';
-    document.getElementById('editPosition').value = u.position || '';
+    if (isAdmin) {
+      document.getElementById('infoNameDisplay').style.display = 'none';
+      document.getElementById('infoDepartmentDisplay').style.display = 'none';
+      document.getElementById('infoPositionDisplay').style.display = 'none';
+      document.getElementById('editName').style.display = '';
+      document.getElementById('editDepartment').style.display = '';
+      document.getElementById('editPosition').style.display = '';
+      document.getElementById('editName').value = u.name;
+      document.getElementById('editDepartment').value = u.department || '';
+      document.getElementById('editPosition').value = u.position || '';
+      document.getElementById('profileActions').style.display = '';
+    } else {
+      document.getElementById('infoNameDisplay').textContent = u.name;
+      document.getElementById('infoDepartmentDisplay').textContent = u.department || '未设置';
+      document.getElementById('infoPositionDisplay').textContent = u.position || '未设置';
+    }
   });
 }
 
@@ -191,6 +321,7 @@ function saveProfile() {
   });
 }
 
+// Page 2: Password
 function changePassword() {
   var old = document.getElementById('oldPassword').value;
   var np = document.getElementById('newPassword').value;
@@ -207,6 +338,9 @@ function changePassword() {
   }).then(function(r){ return r.json(); }).then(function(data){
     if (data.success) {
       toast('密码修改成功','success');
+      var u = JSON.parse(sessionStorage.getItem('kebei_user'));
+      u.first_login = false;
+      sessionStorage.setItem('kebei_user', JSON.stringify(u));
       document.getElementById('oldPassword').value = '';
       document.getElementById('newPassword').value = '';
       document.getElementById('confirmPassword').value = '';
@@ -216,9 +350,9 @@ function changePassword() {
   });
 }
 
-// File permissions
+// Page 3: File permissions
 function loadPermissions() {
-  if (user.role !== 'admin' && user.role !== 'editor') return;
+  if (!isAdmin && !isEditor) return;
   fetch('/api/files').then(function(r){ return r.json(); }).then(function(data){
     if (!data.success) return;
     var list = document.getElementById('permList');
@@ -252,19 +386,22 @@ function updatePerm(fileName, visibility) {
   });
 }
 
-// Member management (admin)
+// Page 4: Member management
 function loadMembers() {
-  if (user.role !== 'admin') return;
+  if (!isAdmin || !user.hr) return;
   fetch('/api/users').then(function(r){ return r.json(); }).then(function(data){
     if (!data.success) return;
     var tbody = document.getElementById('memberBody');
     var roleLabels = {admin:'管理员',editor:'编辑者',viewer:'查看者'};
     tbody.innerHTML = data.users.map(function(u){
+      var isSelf = u.id === user.id;
+      var hrChecked = u.hr ? 'checked' : '';
+      var hrDisabled = (u.role !== 'admin' || isSelf) ? 'disabled' : '';
       return '<tr>'
         + '<td>' + u.id + '</td>'
-        + '<td>' + u.name + '</td>'
-        + '<td>' + (u.department||'') + '</td>'
-        + '<td>' + (u.position||'') + '</td>'
+        + '<td><input value="' + (u.name||'') + '" onchange="updateMember(\'' + u.id + '\',\'name\',this.value)" placeholder="姓名"></td>'
+        + '<td><input value="' + (u.department||'') + '" onchange="updateMember(\'' + u.id + '\',\'department\',this.value)" placeholder="学院"></td>'
+        + '<td><input value="' + (u.position||'') + '" onchange="updateMember(\'' + u.id + '\',\'position\',this.value)" placeholder="岗位"></td>'
         + '<td>'
         + '<select class="role-select" onchange="updateRole(\'' + u.id + '\',this.value)">'
         + '<option value="viewer"' + (u.role==='viewer'?' selected':'') + '>查看者</option>'
@@ -272,9 +409,23 @@ function loadMembers() {
         + '<option value="admin"' + (u.role==='admin'?' selected':'') + '>管理员</option>'
         + '</select>'
         + '</td>'
-        + '<td><button class="btn" style="padding:2px 10px;font-size:0.78rem;" onclick="resetPassword(\'' + u.id + '\')'>重置密码</button></td>'
+        + '<td class="hr-cell"><input type="checkbox" class="hr-toggle" ' + hrChecked + ' ' + hrDisabled + ' onchange="toggleHr(\'' + u.id + '\',this.checked)"></td>'
+        + '<td class="action-cell"><button class="btn" style="padding:2px 10px;font-size:0.78rem;" onclick="resetPassword(\'' + u.id + '\')">重置密码</button></td>'
         + '</tr>';
     }).join('');
+  });
+}
+
+function updateMember(userId, field, value) {
+  var body = {};
+  body[field] = value;
+  fetch('/api/users/' + userId, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) toast('已更新','success');
+    else toast(data.message||'更新失败','error');
   });
 }
 
@@ -284,29 +435,30 @@ function updateRole(userId, role) {
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({role: role})
   }).then(function(r){ return r.json(); }).then(function(data){
-    if (data.success) toast('角色已更新','success');
+    if (data.success) { toast('角色已更新','success'); loadMembers(); }
+    else toast(data.message||'更新失败','error');
+  });
+}
+
+function toggleHr(userId, checked) {
+  fetch('/api/users/' + userId + '/hr', {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({hr: checked})
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) toast('HR权限已更新','success');
     else toast(data.message||'更新失败','error');
   });
 }
 
 function resetPassword(userId) {
-  if (!confirm('确定重置该用户密码为 Kebei2024 ？')) return;
+  if (!confirm('确定重置该用户密码为 Kebei' + userId + ' ？')) return;
   fetch('/api/users/' + userId + '/reset-password', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({password: 'Kebei2024'})
+    headers: {'Content-Type':'application/json'}
   }).then(function(r){ return r.json(); }).then(function(data){
-    if (data.success) toast('密码已重置为 Kebei2024','success');
+    if (data.success) toast('密码已重置为 Kebei' + userId,'success');
     else toast(data.message||'重置失败','error');
-  });
-}
-
-// Tab visibility from URL param
-var params = new URLSearchParams(window.location.search);
-var tab = params.get('tab');
-if (tab) {
-  document.querySelectorAll('.tab').forEach(function(t){
-    if (t.dataset.tab === tab) t.click();
   });
 }
 

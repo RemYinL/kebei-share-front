@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-server.py — 科贝智色 多端文件共享服务
-Flask 应用，通过 Cloudflare Tunnel 对外暴露 share.hnust-kebei.uk
-"""
 import json
 import os
 import re
@@ -11,7 +7,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from functools import wraps
 
-from flask import Flask, render_template, request, jsonify, session, send_from_directory, abort
+from flask import Flask, render_template, request, jsonify, session, send_from_directory, abort, redirect
 
 HERE = Path(__file__).resolve().parent
 KEYS_PATH = HERE / "keys" / "keys.json"
@@ -21,7 +17,6 @@ SECRET_KEY_PATH = HERE / "keys" / ".secret"
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
-# Session key
 if SECRET_KEY_PATH.exists():
     app.secret_key = SECRET_KEY_PATH.read_text().strip()
 else:
@@ -31,7 +26,6 @@ else:
 
 TZ = timezone(timedelta(hours=8))
 
-# ── Data helpers ──────────────────────────────────────────────
 
 def load_keys():
     if KEYS_PATH.exists():
@@ -91,7 +85,6 @@ def can_see_file(user, filename, perms):
         return user["id"] in fp.get("allowed_users", [])
     return True
 
-# ── Auth decorator ────────────────────────────────────────────
 
 def login_required(f):
     @wraps(f)
@@ -127,23 +120,54 @@ def editor_required(f):
         return f(*a, **kw)
     return wrapper
 
-# ── Page routes ───────────────────────────────────────────────
+
+def get_current_user():
+    if "user_id" not in session:
+        return None
+    return find_user(session["user_id"])
+
+
+def sanitize_user(u):
+    return {
+        "id": u["id"],
+        "name": u["name"],
+        "role": u["role"],
+        "hr": u.get("hr", False),
+        "first_login": u.get("first_login", False),
+        "department": u.get("department", ""),
+        "position": u.get("position", ""),
+    }
+
+
+@app.context_processor
+def inject_user():
+    u = get_current_user()
+    return dict(current_user=sanitize_user(u) if u else None)
+
 
 @app.route("/")
 def index_page():
+    u = get_current_user()
+    if not u:
+        return redirect("/login")
     return render_template("index.html")
 
 @app.route("/login")
 def login_page():
+    u = get_current_user()
+    if u:
+        return redirect("/")
     return render_template("login.html")
 
 @app.route("/account")
 def account_page():
+    u = get_current_user()
+    if not u:
+        return redirect("/login")
     return render_template("account.html")
 
 @app.route("/shared/<path:filename>")
 def serve_shared(filename):
-    # Basic auth check
     if "user_id" not in session:
         abort(401)
     user = find_user(session["user_id"])
@@ -154,7 +178,6 @@ def serve_shared(filename):
         abort(403)
     return send_from_directory(str(SHARED_DIR), filename)
 
-# ── API: Auth ─────────────────────────────────────────────────
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
@@ -171,7 +194,7 @@ def api_login():
     force = user.get("first_login", False)
     return jsonify({
         "success": True,
-        "user": {"id": user["id"], "name": user["name"], "role": user["role"]},
+        "user": sanitize_user(user),
         "force_change": force
     })
 
@@ -180,24 +203,25 @@ def api_logout():
     session.clear()
     return jsonify({"success": True})
 
-# ── API: Profile ──────────────────────────────────────────────
+@app.route("/api/check-auth", methods=["GET"])
+def api_check_auth():
+    u = get_current_user()
+    if not u:
+        return jsonify({"success": False, "message": "未登录"}), 401
+    return jsonify({"success": True, "user": sanitize_user(u)})
+
 
 @app.route("/api/user/profile", methods=["GET"])
 @login_required
 def api_get_profile():
     user = find_user(session["user_id"])
-    return jsonify({"success": True, "user": {
-        "id": user["id"],
-        "name": user["name"],
-        "role": user["role"],
-        "department": user.get("department", ""),
-        "position": user.get("position", "")
-    }})
+    return jsonify({"success": True, "user": sanitize_user(user)})
 
 @app.route("/api/user/profile", methods=["PUT"])
 @login_required
 def api_update_profile():
     data = request.get_json(silent=True) or {}
+    current = find_user(session["user_id"])
     users = load_keys()
     for u in users:
         if u["id"] == session["user_id"]:
@@ -208,7 +232,6 @@ def api_update_profile():
     save_keys(users)
     return jsonify({"success": True})
 
-# ── API: Password ─────────────────────────────────────────────
 
 @app.route("/api/change-password", methods=["POST"])
 @login_required
@@ -229,7 +252,6 @@ def api_change_password():
     save_keys(users)
     return jsonify({"success": True, "message": "密码已更新"})
 
-# ── API: Files ────────────────────────────────────────────────
 
 @app.route("/api/files", methods=["GET"])
 @login_required
@@ -258,13 +280,11 @@ def api_delete_file(filename):
     if not fp.exists():
         return jsonify({"success": False, "message": "文件不存在"})
     fp.unlink()
-    # Clean up permissions
     perms = load_perms()
     perms.pop(filename, None)
     save_perms(perms)
     return jsonify({"success": True})
 
-# ── API: File permissions ─────────────────────────────────────
 
 @app.route("/api/file-permissions", methods=["PUT"])
 @editor_required
@@ -279,57 +299,72 @@ def api_set_file_permission():
     save_perms(perms)
     return jsonify({"success": True})
 
-# ── API: User management (admin only) ─────────────────────────
 
 @app.route("/api/users", methods=["GET"])
 @admin_required
 def api_list_users():
     users = load_keys()
     return jsonify({"success": True, "users": [
-        {"id": u["id"], "name": u["name"], "role": u["role"],
-         "department": u.get("department", ""), "position": u.get("position", "")}
-        for u in users
+        sanitize_user(u) for u in users
     ]})
 
 @app.route("/api/users/<user_id>", methods=["PUT"])
 @admin_required
 def api_update_user(user_id):
     data = request.get_json(silent=True) or {}
-    new_role = data.get("role")
-    if new_role and new_role not in ("admin", "editor", "viewer"):
-        return jsonify({"success": False, "message": "无效角色"})
+    admin_user = find_user(session["user_id"])
     users = load_keys()
     for u in users:
         if u["id"] == user_id:
+            new_role = data.get("role")
             if new_role:
+                if new_role not in ("admin", "editor", "viewer"):
+                    return jsonify({"success": False, "message": "无效角色"})
                 u["role"] = new_role
+            if "name" in data:
+                u["name"] = data["name"]
             if "department" in data:
                 u["department"] = data["department"]
             if "position" in data:
                 u["position"] = data["position"]
+            if "hr" in data and new_role == "admin" and u["role"] == "admin":
+                u["hr"] = data["hr"]
             break
     save_keys(users)
     return jsonify({"success": True})
 
-@app.route("/api/users/<user_id>/reset-password", methods=["POST"])
+@app.route("/api/users/<user_id>/hr", methods=["PUT"])
 @admin_required
-def api_reset_password(user_id):
+def api_toggle_hr(user_id):
     data = request.get_json(silent=True) or {}
-    new_pw = data.get("password", "Kebei2024")
     users = load_keys()
     for u in users:
         if u["id"] == user_id:
-            u["password"] = new_pw
-            # Force change on next login
+            if u["role"] != "admin":
+                return jsonify({"success": False, "message": "只能为管理员设置HR权限"})
+            u["hr"] = data.get("hr", False)
             break
     save_keys(users)
-    return jsonify({"success": True, "message": f"密码已重置为 {new_pw}"})
+    return jsonify({"success": True, "message": "HR权限已更新"})
 
-# ── Main ──────────────────────────────────────────────────────
+@app.route("/api/users/<user_id>/reset-password", methods=["POST"])
+@admin_required
+def api_reset_password(user_id):
+    users = load_keys()
+    for u in users:
+        if u["id"] == user_id:
+            new_pw = "Kebei" + u["id"]
+            u["password"] = new_pw
+            u["first_login"] = True
+            break
+    save_keys(users)
+    return jsonify({"success": True, "message": f"密码已重置为 Kebei{user_id}"})
+
 
 if __name__ == "__main__":
     SHARED_DIR.mkdir(parents=True, exist_ok=True)
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
-    print(f"[server] 科贝智色文件共享服务启动 http://{host}:{port}")
-    app.run(host=host, port=port, debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "1") == "1"
+    print(f"[server] 科贝智色文件共享服务启动 http://{host}:{port} debug={debug}")
+    app.run(host=host, port=port, debug=debug)

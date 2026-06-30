@@ -56,6 +56,24 @@
   }
   .upload-dropzone p { color: var(--text-secondary); font-size: 0.9rem; }
   .upload-dropzone .hint { color: var(--text-muted); font-size: 0.8rem; margin-top: 6px; }
+  /* First-login modal */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-card {
+    width: 100%; max-width: 440px;
+    background: var(--surface);
+    backdrop-filter: blur(28px) saturate(1.5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 32px 28px;
+    margin: 24px;
+  }
+  .modal-card h2 { font-size: 1.1rem; margin-bottom: 6px; }
+  .modal-card p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 24px; }
 </style>
 {% endblock %}
 {% block content %}
@@ -82,10 +100,67 @@
   </div>
 </div>
 
+<!-- First-login modal -->
+<div id="firstLoginModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <h2>首次登录</h2>
+    <p>请修改初始密码后继续使用</p>
+    <div class="field">
+      <label>当前密码</label>
+      <input type="password" id="flOldPassword" placeholder="输入当前密码">
+    </div>
+    <div class="field">
+      <label>新密码</label>
+      <input type="password" id="flNewPassword" placeholder="包含大小写字母+数字，至少8位">
+    </div>
+    <div class="field">
+      <label>确认新密码</label>
+      <input type="password" id="flConfirmPassword" placeholder="再次输入新密码">
+    </div>
+    <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:16px;">
+      密码要求：至少8位，包含大写字母、小写字母和数字
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:12px;border-radius:var(--radius-sm);font-size:0.95rem;" onclick="handleFirstLogin()">确认修改</button>
+    <div class="error" id="flError" style="color:#f87171;font-size:0.85rem;margin-top:12px;text-align:center;min-height:1.4em;"></div>
+  </div>
+</div>
+
 <script>
 var user = checkAuth();
 if (!user) throw 'no auth';
 renderBadge(user);
+
+// Show first-login modal
+if (user.first_login) {
+  document.getElementById('firstLoginModal').style.display = '';
+}
+
+function handleFirstLogin() {
+  var old = document.getElementById('flOldPassword').value;
+  var np = document.getElementById('flNewPassword').value;
+  var cp = document.getElementById('flConfirmPassword').value;
+  var err = document.getElementById('flError');
+  if (np !== cp) { err.textContent = '两次密码不一致'; return; }
+  if (np.length < 8) { err.textContent = '密码至少8位'; return; }
+  if (!/[A-Z]/.test(np)) { err.textContent = '密码需要包含大写字母'; return; }
+  if (!/[a-z]/.test(np)) { err.textContent = '密码需要包含小写字母'; return; }
+  if (!/[0-9]/.test(np)) { err.textContent = '密码需要包含数字'; return; }
+  fetch('/api/change-password', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({old_password: old, new_password: np})
+  }).then(function(r){ return r.json(); }).then(function(data){
+    if (data.success) {
+      document.getElementById('firstLoginModal').style.display = 'none';
+      var u = JSON.parse(sessionStorage.getItem('kebei_user'));
+      u.first_login = false;
+      sessionStorage.setItem('kebei_user', JSON.stringify(u));
+      toast('密码修改成功','success');
+    } else {
+      err.textContent = data.message || '修改失败';
+    }
+  });
+}
 
 var canManage = user.role === 'admin' || user.role === 'editor';
 
