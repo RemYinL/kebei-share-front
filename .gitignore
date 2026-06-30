@@ -8,3 +8,6 @@ cloudflare.toml
 .env.local
 .wrangler/
 keys/
+*.bat
+*.vbs
+*.lnk
